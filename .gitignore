@@ -1,7 +1,9 @@
-server/node_modules/
+node_modules/
 server/*.db
 server/*.db-journal
 server/*.db-wal
 server/*.db-shm
 server/.jwt-secret
-server/.env
+.env
+.env.local
+.vercel

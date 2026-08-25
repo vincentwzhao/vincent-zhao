@@ -12,29 +12,66 @@ A single-page website that keeps you motivated while you grind through hard CMPT
 - **Rubber duck debugging corner** — type out your bug and get a canned duck response to help you think it through.
 - **Accounts** — optional sign-up/login so your streak and stats follow you across devices.
 
-## Running it
+## Project layout
 
-### Frontend only (no accounts, stats stay in this browser)
-
-Open `index.html` directly, or serve the folder locally:
-
-```bash
-python3 -m http.server 8000
+```
+index.html, style.css, script.js   — static frontend
+server/app.js                      — Express app (routes, auth, DB access)
+server/db.js                       — database client (SQLite locally, Turso in production)
+server/index.js                    — local dev entry point (calls app.listen)
+api/[...path].js                   — Vercel serverless entry point (re-exports the same app)
 ```
 
-Then visit `http://localhost:8000`.
+The Express app in `server/app.js` is shared between local dev and Vercel — same routes, same code, just a different entry point.
 
-### With the backend (accounts + persistent stats)
-
-The `server/` folder is a small Express + SQLite API that also serves the frontend, so this is the way to run the full app:
+## Running it locally
 
 ```bash
-cd server
 npm install
 npm start
 ```
 
-Then visit `http://localhost:3000`. A `study-buddy.db` SQLite file is created automatically on first run (gitignored). The JWT signing secret is generated on first run and saved to `server/.jwt-secret` (also gitignored) — delete it to invalidate all existing login sessions.
+Then visit `http://localhost:3000`. A `study-buddy.db` SQLite file and a `.jwt-secret` file are created automatically in `server/` on first run (both gitignored).
+
+If you just want the frontend without accounts, open `index.html` directly, or `python3 -m http.server 8000` from the repo root — the account card just won't be able to reach an API.
+
+## Deploying to Vercel (with working accounts)
+
+Vercel's functions are serverless — no persistent local disk — so production needs a hosted database instead of a local SQLite file. This project uses [Turso](https://turso.tech) (SQLite-compatible, has a free tier) via `@libsql/client`, which is why `server/db.js` works unchanged in both places: locally it opens a file, in production it talks to Turso over HTTPS.
+
+1. **Create a Turso database** (needs the [Turso CLI](https://docs.turso.tech/cli/installation)):
+   ```bash
+   turso auth login
+   turso db create study-buddy
+   turso db show study-buddy --url        # → TURSO_DATABASE_URL
+   turso db tokens create study-buddy      # → TURSO_AUTH_TOKEN
+   ```
+
+2. **Generate a JWT secret** (production needs this set explicitly — there's no writable disk to persist an auto-generated one):
+   ```bash
+   openssl rand -hex 32                    # → JWT_SECRET
+   ```
+
+3. **Deploy with the [Vercel CLI](https://vercel.com/docs/cli)**:
+   ```bash
+   npm i -g vercel
+   vercel login
+   vercel                                  # links/creates the project, deploys a preview
+   ```
+
+4. **Set the three environment variables** on the Vercel project (dashboard → Settings → Environment Variables, or via CLI):
+   ```bash
+   vercel env add TURSO_DATABASE_URL production
+   vercel env add TURSO_AUTH_TOKEN production
+   vercel env add JWT_SECRET production
+   ```
+
+5. **Deploy to production:**
+   ```bash
+   vercel --prod
+   ```
+
+No `vercel.json` is needed — the frontend files at the repo root are served as static assets, and every request under `/api/*` is automatically routed to `api/[...path].js`, which just re-exports the Express app.
 
 #### API
 
