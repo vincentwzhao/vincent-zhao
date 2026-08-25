@@ -20,6 +20,28 @@
 
   <main class="wrap">
 
+    <!-- Account / sync -->
+    <section class="card account-card" id="account-card">
+      <div id="account-logged-out">
+        <h2>Sync your progress</h2>
+        <p class="muted">Create an account to save your streak and stats across devices. Works fine as a guest too — it just stays on this browser.</p>
+        <form id="auth-form" class="auth-form">
+          <input type="text" id="auth-username" placeholder="Username" autocomplete="username" required />
+          <input type="password" id="auth-password" placeholder="Password (6+ characters)" autocomplete="current-password" required />
+          <div class="auth-actions">
+            <button type="submit" id="login-btn" class="btn btn-primary">Log in</button>
+            <button type="button" id="register-btn" class="btn btn-secondary">Create account</button>
+          </div>
+        </form>
+        <p id="auth-message" class="reaction"></p>
+      </div>
+      <div id="account-logged-in" class="hidden">
+        <h2>Synced as <span id="account-username"></span> ✅</h2>
+        <p class="muted">Your streak and stats are saved to your account and follow you across devices.</p>
+        <button id="logout-btn" class="btn btn-ghost">Log out</button>
+      </div>
+    </section>
+
     <!-- Streak / stats bar -->
     <section class="stats-bar" id="stats-bar">
       <div class="stat">
@@ -76,6 +98,51 @@
         <button class="filter-btn active" data-filter="all">All</button>
       </div>
       <div class="concepts-grid" id="concepts-grid"></div>
+    </section>
+
+    <!-- Concept visualizer -->
+    <section class="card visualizer-card">
+      <h2>Concept Visualizer 🔍</h2>
+      <p class="muted">Watch BFS and DFS actually move through a graph, one step at a time — not just read about them.</p>
+
+      <div class="viz-controls">
+        <div class="viz-toggle" id="viz-algo-toggle" role="group" aria-label="Algorithm">
+          <button class="mode-btn active" data-algo="bfs">BFS</button>
+          <button class="mode-btn" data-algo="dfs">DFS</button>
+        </div>
+        <label class="viz-select-label">
+          Start node
+          <select id="viz-start-node"></select>
+        </label>
+        <label class="viz-select-label">
+          Speed
+          <input type="range" id="viz-speed" min="200" max="1600" step="100" value="700" />
+        </label>
+      </div>
+
+      <div class="viz-canvas-wrap">
+        <canvas id="viz-canvas" width="600" height="360"></canvas>
+      </div>
+
+      <div class="viz-actions">
+        <button id="viz-play" class="btn btn-primary">Play ▶</button>
+        <button id="viz-pause" class="btn btn-secondary" disabled>Pause</button>
+        <button id="viz-step" class="btn btn-ghost">Step</button>
+        <button id="viz-reset" class="btn btn-ghost">Reset</button>
+      </div>
+
+      <div class="viz-legend">
+        <span><i class="dot dot-visited"></i> Visited</span>
+        <span><i class="dot dot-current"></i> Current</span>
+        <span><i class="dot dot-frontier"></i> In queue/stack</span>
+        <span><i class="dot dot-unvisited"></i> Unvisited</span>
+      </div>
+
+      <p id="viz-explanation" class="viz-explanation">Pick an algorithm and press Play.</p>
+      <p class="viz-complexity">
+        Both BFS and DFS visit every vertex once and look at every edge once (twice on an undirected graph, which is still a constant factor) —
+        that's why both run in <strong>O(V + E)</strong>, regardless of which one "feels" faster on a given graph.
+      </p>
     </section>
 
     <!-- Debug diary / vent box -->
