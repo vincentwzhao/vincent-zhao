@@ -201,20 +201,177 @@ if (state.lastSessionDate !== todayStr()) {
   state.sessionsToday = 0;
 }
 
-document.getElementById("checkin-btn").addEventListener("click", () => {
-  const today = todayStr();
-  if (state.lastCheckin === today) {
-    showReaction("reaction-text", "Already checked in today. Go rest, champion. 🌙");
+// ---------- Account sync (backend) ----------
+
+const TOKEN_KEY = "studyBuddyToken";
+const USERNAME_KEY = "studyBuddyUsername";
+
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setSession(token, username) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USERNAME_KEY, username);
+}
+
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USERNAME_KEY);
+}
+
+async function apiRequest(path, options = {}) {
+  const token = getToken();
+  const res = await fetch(path, {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+function updateAccountUI(loggedIn, username) {
+  document.getElementById("account-logged-out").classList.toggle("hidden", loggedIn);
+  document.getElementById("account-logged-in").classList.toggle("hidden", !loggedIn);
+  if (loggedIn) document.getElementById("account-username").textContent = username;
+}
+
+async function handleAuth(path) {
+  const username = document.getElementById("auth-username").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const messageEl = document.getElementById("auth-message");
+  if (!username || !password) return;
+  try {
+    const data = await apiRequest(path, { method: "POST", body: { username, password } });
+    setSession(data.token, data.username);
+    messageEl.textContent = "";
+    document.getElementById("auth-username").value = "";
+    document.getElementById("auth-password").value = "";
+    const stats = await apiRequest("/api/stats");
+    state = { ...state, ...stats };
+    saveState(state);
+    refreshStatsUI();
+    updateAccountUI(true, data.username);
+  } catch (err) {
+    messageEl.textContent = err.message;
+  }
+}
+
+document.getElementById("auth-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  handleAuth("/api/login");
+});
+
+document.getElementById("register-btn").addEventListener("click", () => {
+  handleAuth("/api/register");
+});
+
+document.getElementById("logout-btn").addEventListener("click", () => {
+  clearSession();
+  updateAccountUI(false);
+});
+
+async function initAuth() {
+  const token = getToken();
+  const username = localStorage.getItem(USERNAME_KEY);
+  if (!token) {
+    updateAccountUI(false);
     return;
   }
+  try {
+    const stats = await apiRequest("/api/stats");
+    state = { ...state, ...stats };
+    saveState(state);
+    refreshStatsUI();
+    updateAccountUI(true, username);
+  } catch {
+    clearSession();
+    updateAccountUI(false);
+  }
+}
+
+initAuth();
+
+// ---------- Streak check-in / session / joke tracking (server-synced, local fallback) ----------
+
+function localCheckin() {
+  const today = todayStr();
+  if (state.lastCheckin === today) return { alreadyCheckedIn: true };
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   state.streak = state.lastCheckin === yesterday.toDateString() ? state.streak + 1 : 1;
   state.lastCheckin = today;
   saveState(state);
+  return { alreadyCheckedIn: false };
+}
+
+async function doCheckin() {
+  let result;
+  if (getToken()) {
+    try {
+      const data = await apiRequest("/api/checkin", { method: "POST" });
+      state = { ...state, ...data };
+      saveState(state);
+      result = { alreadyCheckedIn: data.alreadyCheckedIn };
+    } catch {
+      result = localCheckin();
+    }
+  } else {
+    result = localCheckin();
+  }
   refreshStatsUI();
-  showReaction("reaction-text", `Streak extended to ${state.streak} day${state.streak === 1 ? "" : "s"}. Keep it alive! 🔥`);
-});
+  if (result.alreadyCheckedIn) {
+    showReaction("reaction-text", "Already checked in today. Go rest, champion. 🌙");
+  } else {
+    showReaction("reaction-text", `Streak extended to ${state.streak} day${state.streak === 1 ? "" : "s"}. Keep it alive! 🔥`);
+  }
+}
+
+async function doSessionComplete() {
+  if (getToken()) {
+    try {
+      const data = await apiRequest("/api/session-complete", { method: "POST" });
+      state = { ...state, ...data };
+      saveState(state);
+      refreshStatsUI();
+      return;
+    } catch {
+      /* fall through to local */
+    }
+  }
+  const today = todayStr();
+  if (state.lastSessionDate !== today) {
+    state.lastSessionDate = today;
+    state.sessionsToday = 0;
+  }
+  state.sessionsToday += 1;
+  saveState(state);
+  refreshStatsUI();
+}
+
+async function doJokeHeard() {
+  if (getToken()) {
+    try {
+      const data = await apiRequest("/api/joke-heard", { method: "POST" });
+      state = { ...state, ...data };
+      saveState(state);
+      refreshStatsUI();
+      return;
+    } catch {
+      /* fall through to local */
+    }
+  }
+  state.jokesHeard += 1;
+  saveState(state);
+  refreshStatsUI();
+}
+
+document.getElementById("checkin-btn").addEventListener("click", doCheckin);
 
 // ---------- Motivation / jokes ----------
 
@@ -256,9 +413,7 @@ document.getElementById("joke-btn").addEventListener("click", () => {
     quoteEl.textContent = value;
     quoteEl.style.opacity = 1;
   }, 120);
-  state.jokesHeard += 1;
-  saveState(state);
-  refreshStatsUI();
+  doJokeHeard();
   showReaction("reaction-text", "You survived another one. 😂");
 });
 
@@ -321,15 +476,7 @@ startBtn.addEventListener("click", () => {
       startBtn.disabled = false;
       pauseBtn.disabled = true;
       timerMessage.textContent = "Time's up! Stretch, hydrate, and come back stronger. 🎉";
-
-      const today = todayStr();
-      if (state.lastSessionDate !== today) {
-        state.lastSessionDate = today;
-        state.sessionsToday = 0;
-      }
-      state.sessionsToday += 1;
-      saveState(state);
-      refreshStatsUI();
+      doSessionComplete();
     }
   }, 1000);
 });
@@ -433,6 +580,278 @@ document.getElementById("duck-btn").addEventListener("click", () => {
   const { value } = pickRandom(DUCK_RESPONSES, -1);
   responseEl.textContent = value;
 });
+
+// ---------- Concept Visualizer: BFS/DFS ----------
+
+const VIZ_GRAPH = {
+  A: ["B", "C"],
+  B: ["A", "D"],
+  C: ["A", "D", "E"],
+  D: ["B", "C", "F"],
+  E: ["C", "F", "G"],
+  F: ["D", "E", "H"],
+  G: ["E", "H"],
+  H: ["F", "G"],
+};
+
+const vizCanvas = document.getElementById("viz-canvas");
+const vizCtx = vizCanvas.getContext("2d");
+const vizStartSelect = document.getElementById("viz-start-node");
+const vizAlgoToggle = document.getElementById("viz-algo-toggle");
+const vizSpeedInput = document.getElementById("viz-speed");
+const vizPlayBtn = document.getElementById("viz-play");
+const vizPauseBtn = document.getElementById("viz-pause");
+const vizStepBtn = document.getElementById("viz-step");
+const vizResetBtn = document.getElementById("viz-reset");
+const vizExplanation = document.getElementById("viz-explanation");
+
+const vizNodePositions = (() => {
+  const nodes = Object.keys(VIZ_GRAPH);
+  const cx = 300;
+  const cy = 180;
+  const radius = 140;
+  const positions = {};
+  nodes.forEach((node, i) => {
+    const angle = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+    positions[node] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+  });
+  return positions;
+})();
+
+let vizAlgo = "bfs";
+let vizSteps = [];
+let vizStepIndex = 0;
+let vizTimer = null;
+
+function buildBfsSteps(start) {
+  const steps = [];
+  const visited = new Set([start]);
+  const queue = [start];
+  steps.push({
+    current: null,
+    frontier: [...queue],
+    frontierLabel: "Queue",
+    visited: [...visited],
+    explanation: `Start BFS at ${start}. Mark it visited and add it to the queue.`,
+  });
+  while (queue.length) {
+    const node = queue.shift();
+    steps.push({
+      current: node,
+      frontier: [...queue],
+      frontierLabel: "Queue",
+      visited: [...visited],
+      explanation: `Dequeue ${node} and visit it.`,
+    });
+    for (const neighbor of VIZ_GRAPH[node]) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        queue.push(neighbor);
+        steps.push({
+          current: node,
+          frontier: [...queue],
+          frontierLabel: "Queue",
+          visited: [...visited],
+          explanation: `Discover ${neighbor} from ${node}. Mark it visited and enqueue it.`,
+        });
+      }
+    }
+  }
+  steps.push({
+    current: null,
+    frontier: [],
+    frontierLabel: "Queue",
+    visited: [...visited],
+    explanation: `BFS complete — visited ${visited.size} of ${Object.keys(VIZ_GRAPH).length} nodes, level by level. That's O(V + E): every vertex is enqueued once, every edge is checked once.`,
+  });
+  return steps;
+}
+
+function buildDfsSteps(start) {
+  const steps = [];
+  const visited = new Set();
+  const stack = [start];
+  steps.push({
+    current: null,
+    frontier: [...stack],
+    frontierLabel: "Stack",
+    visited: [...visited],
+    explanation: `Start DFS at ${start}. Push it onto the stack.`,
+  });
+  while (stack.length) {
+    const node = stack.pop();
+    if (visited.has(node)) continue;
+    visited.add(node);
+    steps.push({
+      current: node,
+      frontier: [...stack],
+      frontierLabel: "Stack",
+      visited: [...visited],
+      explanation: `Pop ${node} from the stack and visit it.`,
+    });
+    const unvisitedNeighbors = VIZ_GRAPH[node].filter((n) => !visited.has(n));
+    [...unvisitedNeighbors].reverse().forEach((neighbor) => stack.push(neighbor));
+    if (unvisitedNeighbors.length) {
+      steps.push({
+        current: node,
+        frontier: [...stack],
+        frontierLabel: "Stack",
+        visited: [...visited],
+        explanation: `Push unvisited neighbor${unvisitedNeighbors.length === 1 ? "" : "s"} of ${node} (${unvisitedNeighbors.join(", ")}) onto the stack.`,
+      });
+    }
+  }
+  steps.push({
+    current: null,
+    frontier: [],
+    frontierLabel: "Stack",
+    visited: [...visited],
+    explanation: `DFS complete — visited ${visited.size} of ${Object.keys(VIZ_GRAPH).length} nodes, diving deep before backtracking. Still O(V + E): every vertex is pushed once, every edge is checked once.`,
+  });
+  return steps;
+}
+
+function drawViz(step) {
+  const w = vizCanvas.width;
+  const h = vizCanvas.height;
+  vizCtx.clearRect(0, 0, w, h);
+
+  const visitedSet = new Set(step ? step.visited : []);
+  const frontierSet = new Set(step ? step.frontier : []);
+  const current = step ? step.current : null;
+
+  vizCtx.strokeStyle = "#232b38";
+  vizCtx.lineWidth = 2;
+  Object.entries(VIZ_GRAPH).forEach(([node, neighbors]) => {
+    neighbors.forEach((neighbor) => {
+      const a = vizNodePositions[node];
+      const b = vizNodePositions[neighbor];
+      vizCtx.beginPath();
+      vizCtx.moveTo(a.x, a.y);
+      vizCtx.lineTo(b.x, b.y);
+      vizCtx.stroke();
+    });
+  });
+
+  Object.entries(vizNodePositions).forEach(([node, pos]) => {
+    let fill = "#232b38";
+    let textColor = "#e6edf3";
+    if (node === current) {
+      fill = "#ffd166";
+      textColor = "#1a0510";
+    } else if (visitedSet.has(node)) {
+      fill = "#6ee7b7";
+      textColor = "#04262a";
+    } else if (frontierSet.has(node)) {
+      fill = "#5ce1e6";
+      textColor = "#04262a";
+    }
+
+    vizCtx.beginPath();
+    vizCtx.arc(pos.x, pos.y, 22, 0, Math.PI * 2);
+    vizCtx.fillStyle = fill;
+    vizCtx.fill();
+    vizCtx.strokeStyle = "#0d1117";
+    vizCtx.lineWidth = 2;
+    vizCtx.stroke();
+
+    vizCtx.fillStyle = textColor;
+    vizCtx.font = "bold 15px sans-serif";
+    vizCtx.textAlign = "center";
+    vizCtx.textBaseline = "middle";
+    vizCtx.fillText(node, pos.x, pos.y);
+  });
+
+  const label = step ? `${step.frontierLabel}: [${step.frontier.join(", ") || "empty"}]` : "";
+  vizCtx.fillStyle = "#8b95a5";
+  vizCtx.font = "13px sans-serif";
+  vizCtx.textAlign = "left";
+  vizCtx.textBaseline = "top";
+  vizCtx.fillText(label, 12, 12);
+}
+
+function renderVizStep() {
+  const step = vizSteps[vizStepIndex];
+  drawViz(step);
+  vizExplanation.textContent = step ? step.explanation : "Pick an algorithm and press Play.";
+}
+
+function buildVizSteps() {
+  const start = vizStartSelect.value;
+  vizSteps = vizAlgo === "bfs" ? buildBfsSteps(start) : buildDfsSteps(start);
+  vizStepIndex = 0;
+}
+
+function stopVizPlayback() {
+  if (vizTimer) {
+    clearInterval(vizTimer);
+    vizTimer = null;
+  }
+  vizPlayBtn.disabled = false;
+  vizPauseBtn.disabled = true;
+}
+
+function stepVizForward() {
+  if (vizStepIndex < vizSteps.length - 1) {
+    vizStepIndex += 1;
+    renderVizStep();
+  }
+  if (vizStepIndex >= vizSteps.length - 1) {
+    stopVizPlayback();
+  }
+}
+
+function resetViz() {
+  stopVizPlayback();
+  buildVizSteps();
+  renderVizStep();
+}
+
+Object.keys(VIZ_GRAPH).forEach((node) => {
+  const opt = document.createElement("option");
+  opt.value = node;
+  opt.textContent = node;
+  vizStartSelect.appendChild(opt);
+});
+
+vizAlgoToggle.addEventListener("click", (e) => {
+  const btn = e.target.closest(".mode-btn");
+  if (!btn) return;
+  vizAlgoToggle.querySelectorAll(".mode-btn").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  vizAlgo = btn.dataset.algo;
+  resetViz();
+});
+
+vizStartSelect.addEventListener("change", resetViz);
+
+vizPlayBtn.addEventListener("click", () => {
+  if (vizStepIndex >= vizSteps.length - 1) {
+    buildVizSteps();
+    renderVizStep();
+  }
+  vizPlayBtn.disabled = true;
+  vizPauseBtn.disabled = false;
+  vizTimer = setInterval(stepVizForward, Number(vizSpeedInput.value));
+});
+
+vizPauseBtn.addEventListener("click", stopVizPlayback);
+
+vizStepBtn.addEventListener("click", () => {
+  stopVizPlayback();
+  stepVizForward();
+});
+
+vizResetBtn.addEventListener("click", resetViz);
+
+vizSpeedInput.addEventListener("change", () => {
+  if (vizTimer) {
+    clearInterval(vizTimer);
+    vizTimer = setInterval(stepVizForward, Number(vizSpeedInput.value));
+  }
+});
+
+resetViz();
 
 // ---------- Init ----------
 

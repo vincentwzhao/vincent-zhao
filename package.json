@@ -1,0 +1,15 @@
+{
+  "name": "study-buddy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Study Buddy: a motivational CMPT study companion, with a BFS/DFS concept visualizer and account-synced streaks. Deployable to Vercel (frontend as static files, backend as a serverless function) with a Turso database, or runnable standalone locally.",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
