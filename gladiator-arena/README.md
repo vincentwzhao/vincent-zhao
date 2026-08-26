@@ -5,6 +5,7 @@ condemned to the sand and must survive endless waves of enemy gladiators in
 front of a roaring crowd. Pure static HTML/CSS/JS — no build step, no
 dependencies, no external assets (even the sound effects are synthesized in
 the browser with the Web Audio API).
+<img width="742" height="490" alt="image" src="https://github.com/user-attachments/assets/587e643c-566a-4632-b81d-4356ca14f6d5" />
 
 ## Running it
 
