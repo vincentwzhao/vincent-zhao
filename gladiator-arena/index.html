@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gladiator — Coliseum Deathmatch</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="game-container">
+
+    <canvas id="game-canvas" width="960" height="640"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="top-bar">
+        <div class="bars">
+          <div class="bar-row">
+            <span class="bar-label">HEALTH</span>
+            <div class="bar hp-bar"><div class="bar-fill" id="hp-fill"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">STAMINA</span>
+            <div class="bar sta-bar"><div class="bar-fill" id="sta-fill"></div></div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat-chip">WAVE <span id="wave-num">1</span></div>
+          <div class="stat-chip">SCORE <span id="score-num">0</span></div>
+          <div class="stat-chip">BEST <span id="best-num">0</span></div>
+        </div>
+        <button id="mute-btn" class="icon-btn" title="Toggle sound">🔊</button>
+      </div>
+
+      <div id="wave-banner" class="banner hidden"></div>
+      <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <!-- Start screen -->
+    <div id="start-screen" class="overlay">
+      <h1 class="title">GLADIATOR</h1>
+      <p class="subtitle">Coliseum Deathmatch</p>
+      <p class="flavor">Condemned to the sand. The crowd wants blood — give them a show,
+        or become the next stain on the arena floor.</p>
+
+      <div class="controls-grid">
+        <div class="control"><span class="key">WASD</span><span class="key">/ Arrows</span><span class="desc">Move</span></div>
+        <div class="control"><span class="key">Mouse</span><span class="desc">Aim</span></div>
+        <div class="control"><span class="key">Click</span><span class="key">/ Space</span><span class="desc">Attack</span></div>
+        <div class="control"><span class="key">Right‑Click</span><span class="key">/ E</span><span class="desc">Shield Block</span></div>
+        <div class="control"><span class="key">Shift</span><span class="desc">Dodge Roll</span></div>
+        <div class="control"><span class="key">P</span><span class="key">/ Esc</span><span class="desc">Pause</span></div>
+      </div>
+
+      <button id="start-btn" class="btn-arena">Enter the Arena</button>
+      <p class="hint">Survive the waves. Watch for the red flash — it means they're about to swing.</p>
+    </div>
+
+    <!-- Pause screen -->
+    <div id="pause-screen" class="overlay hidden">
+      <h1 class="title small">PAUSED</h1>
+      <p class="subtitle">Press P or Esc to resume</p>
+    </div>
+
+    <!-- Game over screen -->
+    <div id="gameover-screen" class="overlay hidden">
+      <h1 class="title small" id="gameover-title">YOU HAVE FALLEN</h1>
+      <p class="subtitle" id="gameover-subtitle"></p>
+      <div id="gameover-stats" class="gameover-stats"></div>
+      <button id="restart-btn" class="btn-arena">Fight Again</button>
+    </div>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
