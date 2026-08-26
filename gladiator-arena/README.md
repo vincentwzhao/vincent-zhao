@@ -7,6 +7,10 @@ dependencies, no external assets (even the sound effects are synthesized in
 the browser with the Web Audio API).
 <img width="742" height="490" alt="image" src="https://github.com/user-attachments/assets/587e643c-566a-4632-b81d-4356ca14f6d5" />
 
+
+<img width="742" height="488" alt="Screenshot 2026-08-26 140558" src="https://github.com/user-attachments/assets/e661a26f-b2dd-4ff9-8e5c-e8c92c3c5782" />
+
+
 ## Running it
 
 Open `index.html` in a browser, or serve the folder locally:
