@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Via Imperii — A Roman Empire Adventure</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="game-container">
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-left">
+        <div class="hud-chip"><span class="hud-icon">&#9829;</span><div class="hud-bar hp-bar"><div class="hud-bar-fill" id="hp-fill"></div></div></div>
+        <div class="hud-chip"><span class="hud-icon">&#9733;</span><span class="hud-value" id="glory-value">0</span><span class="hud-label">Glory</span></div>
+        <div class="hud-chip"><span class="hud-icon">&#9906;</span><span class="hud-value" id="gold-value">0</span><span class="hud-label">Denarii</span></div>
+        <div class="hud-chip"><span class="hud-icon">&#8987;</span><span class="hud-value" id="turns-value">0</span><span class="hud-label">Turns</span></div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-chip">Provinces <span class="hud-value" id="visited-value">0</span>/<span id="total-value">12</span></div>
+        <button id="mute-btn" class="icon-btn" title="Toggle sound">&#9834;</button>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map-wrap">
+     <div id="map-svg-holder">
+      <svg id="map-svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <radialGradient id="seaGrad" cx="50%" cy="40%" r="75%">
+            <stop offset="0%" stop-color="#4a7d8c" />
+            <stop offset="100%" stop-color="#2c5464" />
+          </radialGradient>
+        </defs>
+        <rect x="0" y="0" width="1000" height="700" fill="url(#seaGrad)" />
+        <g id="sea-texture"></g>
+        <g id="regions-layer"></g>
+        <g id="roads-layer"></g>
+        <g id="nodes-layer"></g>
+        <rect x="6" y="6" width="988" height="688" fill="none" stroke="#e8c168" stroke-width="4" />
+        <rect x="14" y="14" width="972" height="672" fill="none" stroke="#e8c168" stroke-width="1" />
+        <text x="500" y="42" text-anchor="middle" class="map-title">IMPERIVM ROMANVM</text>
+        <g id="compass" transform="translate(925,80)">
+          <circle r="26" fill="rgba(20,15,10,0.35)" stroke="#e8c168" stroke-width="1.5" />
+          <path d="M0,-20 L6,0 L0,20 L-6,0 Z" fill="#e8c168" />
+          <text y="-30" text-anchor="middle" class="compass-label">N</text>
+        </g>
+      </svg>
+     </div>
+
+     <aside id="sidebar">
+      <!-- Info panel for a selected node -->
+      <div id="info-panel" class="hidden">
+        <h3 id="info-name">—</h3>
+        <p id="info-desc">—</p>
+        <p id="info-status" class="info-status"></p>
+        <div class="info-actions">
+          <button id="info-travel-btn" class="btn-scroll">Travel</button>
+          <button id="info-close-btn" class="btn-scroll ghost">Close</button>
+        </div>
+      </div>
+      <p id="sidebar-placeholder" class="sidebar-placeholder">Click a province on the map to learn more about it, or to travel there if it is connected to your current location.</p>
+
+      <button id="rome-return-btn" class="btn-scroll conclude hidden">Conclude Your Journey</button>
+     </aside>
+    </div>
+
+    <!-- Event scroll panel -->
+    <div id="event-overlay" class="overlay hidden">
+      <div class="scroll">
+        <h2 id="event-title">—</h2>
+        <p id="event-text">—</p>
+        <div id="event-choices" class="event-choices"></div>
+      </div>
+    </div>
+
+    <!-- Start screen -->
+    <div id="start-screen" class="overlay">
+      <h1 class="title">VIA IMPERII</h1>
+      <p class="subtitle">A Roman Empire Adventure</p>
+      <p class="flavor">The year is 117 A.D. The Empire stretches from the mists of Britannia to the deserts
+        beyond the Nile. You set out from Rome with little but your wits, a purse of denarii, and
+        a season's worth of time before you must answer for how you spent it. Travel the provinces,
+        strike deals, dodge bandits, win favor — and return to the Forum with a name worth remembering.</p>
+
+      <div class="class-grid" id="class-grid"></div>
+
+      <button id="start-btn" class="btn-scroll big" disabled>Set Out from Rome</button>
+      <p class="hint">Click a province to inspect it. You may only travel directly to a province connected
+        to your current one by road or sea route — plan your journey with your remaining turns in mind.</p>
+    </div>
+
+    <!-- End screen -->
+    <div id="end-screen" class="overlay hidden">
+      <h1 class="title small" id="end-title">—</h1>
+      <p class="subtitle" id="end-subtitle"></p>
+      <p class="flavor" id="end-flavor"></p>
+      <div class="end-stats" id="end-stats"></div>
+      <button id="restart-btn" class="btn-scroll big">Begin Anew</button>
+    </div>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
