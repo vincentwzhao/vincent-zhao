@@ -19,3 +19,21 @@ python3 -m http.server 8000
 ```
 
 Then visit `http://localhost:8000`.
+
+## Organizing your projects
+
+`organize_projects.py` is a standalone local script (not related to the site above) that scans a
+directory of your project folders, detects what each one is (Python, Node, Rust, static site, etc.)
+from marker files like `package.json` or `requirements.txt`, and sorts them into per-language
+subfolders.
+
+```bash
+# Dry run: just show what would happen
+python3 organize_projects.py --root ~/Projects
+
+# Write a Markdown/JSON summary
+python3 organize_projects.py --root ~/Projects --report projects.md --json projects.json
+
+# Actually move folders into ~/Projects/organized/<language>/<project>
+python3 organize_projects.py --root ~/Projects --apply
+```
