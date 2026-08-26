@@ -22,18 +22,23 @@ Then visit `http://localhost:8000`.
 
 ## Organizing your projects
 
-`organize_projects.py` is a standalone local script (not related to the site above) that scans a
-directory of your project folders, detects what each one is (Python, Node, Rust, static site, etc.)
-from marker files like `package.json` or `requirements.txt`, and sorts them into per-language
-subfolders.
+`organize_projects.py` is a standalone local script (not related to the site above) that scans your
+Downloads folder (or any directory you point it at), detects what each project is (Python, Node,
+Rust, static site, etc.) from marker files like `package.json` or `requirements.txt`, and sorts them
+into per-language subfolders. It handles both plain project folders and zipped project archives
+(e.g. `my-project.zip` downloaded from GitHub) — zips get extracted into place, and the original
+archive is left untouched.
 
 ```bash
-# Dry run: just show what would happen
-python3 organize_projects.py --root ~/Projects
+# Dry run against ~/Downloads: just show what would happen
+python3 organize_projects.py
 
 # Write a Markdown/JSON summary
-python3 organize_projects.py --root ~/Projects --report projects.md --json projects.json
+python3 organize_projects.py --report projects.md --json projects.json
 
-# Actually move folders into ~/Projects/organized/<language>/<project>
+# Actually move folders / extract zips into ~/Downloads/organized/<language>/<project>
+python3 organize_projects.py --apply
+
+# Point it at a different folder
 python3 organize_projects.py --root ~/Projects --apply
 ```

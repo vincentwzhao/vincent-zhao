@@ -2,22 +2,25 @@
 """
 organize_projects.py
 
-A local script that scans a directory of your projects, figures out what
-each one is (Python, Node, Rust, static site, etc.) using marker files, and
-either reports on them or sorts them into per-language subfolders.
+A local script that scans a directory of your projects (defaults to your
+Downloads folder), figures out what each one is (Python, Node, Rust, static
+site, etc.) using marker files, and either reports on them or sorts them
+into per-language subfolders. Project folders and zipped project archives
+(e.g. "my-project.zip" downloaded from GitHub) are both handled.
 
 Usage:
-    python3 organize_projects.py --root ~/Projects
-    python3 organize_projects.py --root ~/Projects --apply
-    python3 organize_projects.py --root ~/Projects --report projects.md
+    python3 organize_projects.py
+    python3 organize_projects.py --apply
+    python3 organize_projects.py --root ~/Downloads --report projects.md
 
 By default this only PRINTS a plan (dry run). Pass --apply to actually move
-folders on disk.
+folders (and extract zip archives) on disk.
 """
 
 import argparse
 import json
 import subprocess
+import zipfile
 from pathlib import Path
 
 # Marker file/glob -> category. Checked in order; first match wins.
@@ -54,6 +57,26 @@ def detect_category(project_dir: Path) -> str:
     return "Uncategorized"
 
 
+def detect_category_zip(zip_path: Path) -> str:
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            names = zf.namelist()
+    except (zipfile.BadZipFile, OSError):
+        return "Unreadable-Archive"
+
+    basenames = {Path(n).name for n in names}
+    for marker, category in MARKERS:
+        if "*" in marker:
+            suffix = marker.lstrip("*")
+            if any(n.endswith(suffix) for n in names):
+                return category
+        elif marker in basenames:
+            return category
+    if any(n.startswith(".git/") or "/.git/" in n for n in names):
+        return "Other-Git"
+    return "Uncategorized"
+
+
 def git_info(project_dir: Path) -> dict:
     if not (project_dir / ".git").exists():
         return {}
@@ -82,17 +105,23 @@ def git_info(project_dir: Path) -> dict:
 def scan_projects(root: Path):
     projects = []
     for entry in sorted(root.iterdir()):
-        if not entry.is_dir():
-            continue
-        if entry.name in (DEST_DIRNAME, ".git"):
-            continue
-        category = detect_category(entry)
-        projects.append({
-            "name": entry.name,
-            "path": str(entry),
-            "category": category,
-            **git_info(entry),
-        })
+        if entry.is_dir():
+            if entry.name in (DEST_DIRNAME, ".git"):
+                continue
+            projects.append({
+                "name": entry.name,
+                "path": str(entry),
+                "kind": "dir",
+                "category": detect_category(entry),
+                **git_info(entry),
+            })
+        elif entry.suffix.lower() == ".zip":
+            projects.append({
+                "name": entry.stem,
+                "path": str(entry),
+                "kind": "zip",
+                "category": detect_category_zip(entry),
+            })
     return projects
 
 
@@ -121,6 +150,20 @@ def apply_moves(projects, root: Path):
         src = Path(p["path"])
         dest_dir = dest_root / p["category"]
         dest_dir.mkdir(parents=True, exist_ok=True)
+
+        if p["kind"] == "zip":
+            dest = dest_dir / p["name"]
+            if dest.exists():
+                print(f"SKIP (already exists): {dest}")
+                continue
+            print(f"EXTRACT: {src} -> {dest} (original archive left in place)")
+            try:
+                with zipfile.ZipFile(src) as zf:
+                    zf.extractall(dest)
+            except (zipfile.BadZipFile, OSError) as exc:
+                print(f"  FAILED to extract {src}: {exc}")
+            continue
+
         dest = dest_dir / src.name
         if dest.exists():
             print(f"SKIP (already exists): {dest}")
@@ -131,7 +174,7 @@ def apply_moves(projects, root: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Organize local project folders by type.")
-    parser.add_argument("--root", default=".", help="Directory containing your project folders (default: current directory).")
+    parser.add_argument("--root", default=str(Path.home() / "Downloads"), help="Directory containing your project folders/archives (default: ~/Downloads).")
     parser.add_argument("--apply", action="store_true", help="Actually move folders into organized/<category>/. Without this flag, only a plan is printed.")
     parser.add_argument("--report", help="Path to write a Markdown report (e.g. projects.md).")
     parser.add_argument("--json", help="Path to write a JSON report (e.g. projects.json).")
