@@ -7,6 +7,7 @@ at each stop that shape your health, gold, and glory before your season
 of travel runs out. Pure static HTML/CSS/JS — no build step, no
 dependencies, no external assets (sound effects are synthesized in the
 browser with the Web Audio API).
+<img width="765" height="497" alt="image" src="https://github.com/user-attachments/assets/76412a58-68f5-4834-94a6-d94cc8b06165" />
 
 ## Running it
 
